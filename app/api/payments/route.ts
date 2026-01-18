@@ -4,7 +4,10 @@ import { authOptions } from '@/lib/google-auth';
 import { sheetsClient, getPayments } from '@/lib/google-sheets';
 import { GOOGLE_SHEETS_SHEET_NAMES } from '@/config/constants';
 import { paymentSchema } from '@/lib/validations';
+
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);

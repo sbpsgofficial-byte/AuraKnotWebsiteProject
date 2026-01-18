@@ -7,6 +7,7 @@ import { createCalendarEvent } from '@/lib/google-calendar';
 import { generateOrderId } from '@/lib/quotation-generator';
 import { Quotation, EventType, PackageType, SessionType, QuotationStatus } from '@/types';
 
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 // Type for PATCH request body
