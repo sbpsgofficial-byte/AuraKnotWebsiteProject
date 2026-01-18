@@ -6,6 +6,8 @@ import { GOOGLE_SHEETS_SHEET_NAMES } from '@/config/constants';
 import { generateQuotationId } from '@/lib/quotation-generator';
 import { quotationSchema } from '@/lib/validations';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);

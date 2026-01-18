@@ -5,6 +5,8 @@ import { sheetsClient, getExpenses } from '@/lib/google-sheets';
 import { GOOGLE_SHEETS_SHEET_NAMES } from '@/config/constants';
 import { expenseSchema } from '@/lib/validations';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);

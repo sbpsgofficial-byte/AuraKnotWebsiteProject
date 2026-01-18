@@ -10,10 +10,13 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
-      // Add admin email check here if needed
-      // const adminEmails = process.env.ADMIN_EMAILS?.split(',') || [];
-      // return adminEmails.includes(user.email || '');
-      return true; // Allow all Google sign-ins for now
+      // Only allow specific email to sign in
+      const allowedEmail = process.env.ALLOWED_EMAIL || process.env.ADMIN_EMAIL;
+      if (!allowedEmail) {
+        console.warn('ALLOWED_EMAIL environment variable not set');
+        return false;
+      }
+      return user.email === allowedEmail;
     },
     async session({ session, token }) {
       if (session.user) {

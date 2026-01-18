@@ -4,6 +4,8 @@ import { authOptions } from '@/lib/google-auth';
 import { sheetsClient } from '@/lib/google-sheets';
 import { GOOGLE_SHEETS_SHEET_NAMES } from '@/config/constants';
 
+export const dynamic = 'force-dynamic';
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
