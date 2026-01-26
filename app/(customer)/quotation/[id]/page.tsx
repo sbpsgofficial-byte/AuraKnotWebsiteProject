@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,11 +15,7 @@ export default function CustomerQuotationViewPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  useEffect(() => {
-    fetchQuotation();
-  }, [params.id]);
-
-  const fetchQuotation = async () => {
+  const fetchQuotation = useCallback(async () => {
     try {
       const response = await fetch(`/api/quotations/${params.id}`);
       if (response.ok) {
@@ -31,7 +27,11 @@ export default function CustomerQuotationViewPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [params.id]);
+
+  useEffect(() => {
+    fetchQuotation();
+  }, [fetchQuotation]);
 
   const handleAccept = async () => {
     if (!quotation) return;

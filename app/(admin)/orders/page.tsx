@@ -77,9 +77,9 @@ export default function OrdersPage() {
 
   const getStatusIndicator = (status: string) => {
     if (status === 'Yes' || status === 'Not needed') {
-      return <span className="text-green-600">🟢</span>;
+      return <span className="inline-block w-3 h-3 bg-green-500 rounded-full"></span>;
     }
-    return <span className="text-red-600">🔴</span>;
+    return <span className="inline-block w-3 h-3 bg-red-500 rounded-full"></span>;
   };
 
   useEffect(() => {

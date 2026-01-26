@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { formatCurrency, formatDate, formatCurrencyForPDF } from '@/lib/utils';
@@ -34,11 +34,7 @@ export default function ReportsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchReportData();
-  }, [reportType, category]);
-
-  const fetchReportData = async () => {
+  const fetchReportData = useCallback(async () => {
     setIsLoading(true);
     try {
       const [ordersRes, customersRes, expensesRes, quotationsRes] = await Promise.all([
@@ -114,7 +110,11 @@ export default function ReportsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [reportType, category, toast]);
+
+  useEffect(() => {
+    fetchReportData();
+  }, [fetchReportData]);
 
   const generateReportData = () => {
     return [
@@ -139,20 +139,24 @@ export default function ReportsPage() {
 
     // Letterhead Design (Same as Quotation)
     doc.setFillColor(50, 50, 50);
-    doc.rect(0, 0, pageWidth, 40, 'F');
+    doc.rect(0, 0, pageWidth, 45, 'F');
 
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(24);
     doc.setFont('helvetica', 'bold');
-    doc.text('AURA KNOT PHOTOGRAPHY', pageWidth / 2, 20, { align: 'center' });
+    doc.text('AURA KNOT PHOTOGRAPHY', pageWidth / 2, 25, { align: 'center' });
 
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
-    doc.text('Professional Photography & Videography Services', pageWidth / 2, 30, { align: 'center' });
+    doc.text('Professional Photography & Videography Services', pageWidth / 2, 35, { align: 'center' });
+
+    // Gold accent line
+    doc.setFillColor(184, 138, 68);
+    doc.rect(0, 40, pageWidth, 3, 'F');
 
     // Reset text color
     doc.setTextColor(0, 0, 0);
-    yPos = 50;
+    yPos = 55;
 
     // Report Header
     doc.setFontSize(18);
@@ -172,7 +176,8 @@ export default function ReportsPage() {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     const headers = ['Order ID', 'Customer', 'Event Type', 'Amount', 'Expenses', 'Profit', 'Date'];
-    const colWidths = [25, 35, 30, 20, 20, 20, 25];
+    // Wider Event Type column to avoid overlap; other columns adjusted
+    const colWidths = [25, 30, 45, 18, 18, 18, 26];
     let xPos = 20;
 
     headers.forEach((header, index) => {
@@ -189,14 +194,35 @@ export default function ReportsPage() {
     // Table Data
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
+    // Helper to add wrapped text and return number of lines used
+    const addWrappedCell = (text: string, x: number, maxWidth: number) => {
+      const lines = doc.splitTextToSize(String(text), maxWidth - 2);
+      doc.text(lines, x, yPos);
+      return lines.length;
+    };
 
-    reportData.forEach((row, index) => {
-      if (yPos > pageHeight - 40) {
-        // Add new page
+    reportData.forEach((row) => {
+      // Prepare row cells and compute wrapped lines for each cell
+      const cells = [
+        row.orderId,
+        row.customerName.length > 25 ? row.customerName.substring(0, 25) + '...' : row.customerName,
+        row.eventType,
+        formatCurrencyForPDF(row.amount),
+        formatCurrencyForPDF(row.expenses),
+        formatCurrencyForPDF(row.profit),
+        formatDate(row.createdAt)
+      ];
+
+      // Estimate max lines required for this row
+      const cellLines = cells.map((cell, idx) => doc.splitTextToSize(String(cell), colWidths[idx] - 2).length);
+      const maxLines = Math.max(...cellLines);
+      const lineHeight = 4.5;
+      const requiredHeight = maxLines * lineHeight;
+
+      // If not enough space on current page, add new page and redraw headers
+      if (yPos + requiredHeight > pageHeight - 40) {
         doc.addPage();
-        yPos = 30;
-
-        // Re-add letterhead on new page
+        // small header on continued pages
         doc.setFillColor(50, 50, 50);
         doc.rect(0, 0, pageWidth, 25, 'F');
         doc.setTextColor(255, 255, 255);
@@ -221,22 +247,17 @@ export default function ReportsPage() {
         doc.setFontSize(8);
       }
 
+      // Draw each cell with wrapping
       xPos = 20;
-      const rowData = [
-        row.orderId,
-        row.customerName.length > 15 ? row.customerName.substring(0, 15) + '...' : row.customerName,
-        row.eventType,
-        formatCurrencyForPDF(row.amount),
-        formatCurrencyForPDF(row.expenses),
-        formatCurrencyForPDF(row.profit),
-        formatDate(row.createdAt)
-      ];
+      for (let ci = 0; ci < cells.length; ci++) {
+        const cw = colWidths[ci];
+        const lines = doc.splitTextToSize(String(cells[ci]), cw - 2);
+        doc.text(lines, xPos, yPos);
+        xPos += cw;
+      }
 
-      rowData.forEach((cell, cellIndex) => {
-        doc.text(String(cell), xPos, yPos);
-        xPos += colWidths[cellIndex];
-      });
-      yPos += 6;
+      // Move yPos by the tallest cell in the row
+      yPos += requiredHeight + 2;
     });
 
     // Summary Section

@@ -1,0 +1,12 @@
+{
+  "name": "auraknot-quotation-pdf",
+  "version": "1.0.0",
+  "description": "Generate quotation PDF for Aura Knot Photography",
+  "scripts": {
+    "generate-pdf": "node generate-pdf.js",
+    "generate-pdf-custom": "node generate-pdf.js Q-AKP-26-0002 \"24 January 2026\" \"Jane Smith\" \"5 February 2026 - 6 February 2026\" \"Marriott\" \"₹1,35,000\""
+  },
+  "dependencies": {
+    "puppeteer": "^20.0.0"
+  }
+}

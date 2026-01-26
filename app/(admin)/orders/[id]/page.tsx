@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import {
   Card,
@@ -55,11 +55,7 @@ export default function OrderDetailPage() {
     albumDelivery: 'No',
   });
 
-  useEffect(() => {
-    fetchOrderData();
-  }, [params.id]);
-
-  const fetchOrderData = async () => {
+  const fetchOrderData = useCallback(async () => {
     try {
       const [orderRes, expensesRes, paymentsRes] = await Promise.all([
         fetch(`/api/orders/${params.id}`),
@@ -108,7 +104,11 @@ export default function OrderDetailPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [params.id]);
+
+  useEffect(() => {
+    fetchOrderData();
+  }, [fetchOrderData]);
 
   // ---------------- TOTALS ----------------
   const totalExpenses = expenses.reduce(
@@ -199,24 +199,60 @@ export default function OrderDetailPage() {
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     let yPos = 20;
+    const bottomMargin = 40;
+    const lineHeight = 5;
 
-    // Header
-    doc.setFillColor(50, 50, 50);
-    doc.rect(0, 0, pageWidth, 40, 'F');
+    // helper to write wrapped text at current yPos and update yPos
+    const writeWrapped = (text: string, x: number, maxWidth: number) => {
+      const lines = doc.splitTextToSize(String(text), maxWidth);
+      doc.text(lines, x, yPos);
+      yPos += lines.length * lineHeight;
+    };
 
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(24);
-    doc.setFont('helvetica', 'bold');
-    doc.text('AURA KNOT PHOTOGRAPHY', pageWidth / 2, 20, { align: 'center' });
+    // Header helper — draws letterhead and positions yPos
+    const addHeader = (continued = false) => {
+      if (!continued) {
+        doc.setFillColor(50, 50, 50);
+        doc.rect(0, 0, pageWidth, 45, 'F');
 
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'normal');
-    doc.text('Professional Photography & Videography Services', pageWidth / 2, 30, { align: 'center' });
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(24);
+        doc.setFont('helvetica', 'bold');
+        doc.text('AURA KNOT PHOTOGRAPHY', pageWidth / 2, 25, { align: 'center' });
 
-    doc.setTextColor(0, 0, 0);
-    yPos = 50;
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Professional Photography & Videography Services', pageWidth / 2, 35, { align: 'center' });
 
-    // Order Title
+        // Gold accent line
+        doc.setFillColor(184, 138, 68);
+        doc.rect(0, 40, pageWidth, 3, 'F');
+
+        // Reset text color and font for body
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'normal');
+        yPos = 55;
+      } else {
+        // Small header for continued pages
+        doc.setFillColor(50, 50, 50);
+        doc.rect(0, 0, pageWidth, 25, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text('AURA KNOT PHOTOGRAPHY - Continued', pageWidth / 2, 15, { align: 'center' });
+        // Reset text color and font for body
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'normal');
+        yPos = 35;
+      }
+    };
+
+    // Draw initial header
+    addHeader(false);
+
+    // ORDER DETAILS heading at top
     doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
     doc.text('ORDER DETAILS', pageWidth / 2, yPos, { align: 'center' });
@@ -225,176 +261,140 @@ export default function OrderDetailPage() {
     doc.setFontSize(10);
     doc.setFont('helvetica', 'italic');
     doc.text('Comprehensive Order Report & Financial Summary', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 12;
+    yPos += 15;
 
-    // Order Information
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Order Information:', 20, yPos);
-    yPos += 8;
+    // Set up two columns to reduce pages
+    const colWidth = (pageWidth - 60) / 2; // 60 for margins
+    let leftX = 20;
+    let rightX = 20 + colWidth + 20;
+    let leftY = yPos;
+    let rightY = yPos;
 
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Order ID: ${order.orderId}`, 25, yPos);
-    yPos += 6;
-    doc.text(`Created Date: ${formatDate(order.createdAt)}`, 25, yPos);
-    yPos += 6;
-    doc.text(`Estimated Budget: ${formatCurrencyForPDF(order.estimatedBudget || 0)}`, 25, yPos);
-    yPos += 6;
-    doc.text(`Final Budget: ${formatCurrencyForPDF(order.finalBudget || 0)}`, 25, yPos);
-    yPos += 10;
+    // Helper to add text to left column
+    const addToLeft = (text: string, fontSize = 12, fontStyle: 'normal' | 'bold' = 'normal') => {
+      doc.setFontSize(fontSize);
+      doc.setFont('helvetica', fontStyle);
+      const lines = doc.splitTextToSize(text, colWidth - 10);
+      doc.text(lines, leftX, leftY);
+      leftY += lines.length * lineHeight;
+    };
 
-    // Section divider
-    doc.setDrawColor(200, 200, 200);
-    doc.setLineWidth(0.3);
-    doc.line(20, yPos, pageWidth - 20, yPos);
-    yPos += 8;
+    // Helper to add text to right column
+    const addToRight = (text: string, fontSize = 12, fontStyle: 'normal' | 'bold' = 'normal') => {
+      doc.setFontSize(fontSize);
+      doc.setFont('helvetica', fontStyle);
+      const lines = doc.splitTextToSize(text, colWidth - 10);
+      doc.text(lines, rightX, rightY);
+      rightY += lines.length * lineHeight;
+    };
 
-    // Customer Information
+    // Order Information (Left Column)
+    addToLeft('Order Information:', 12, 'bold');
+    leftY += 3;
+    addToLeft(`Order ID: ${order.orderId}`);
+    addToLeft(`Created Date: ${formatDate(order.createdAt)}`);
+    addToLeft(`Estimated Budget: ${formatCurrencyForPDF(order.estimatedBudget || 0)}`);
+    addToLeft(`Final Budget: ${formatCurrencyForPDF(order.finalBudget || 0)}`);
+    leftY += 5;
+
+    // Customer Information (Left Column)
     if (customer) {
-      doc.setFont('helvetica', 'bold');
-      doc.text('Customer Information:', 20, yPos);
-      yPos += 8;
-
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Name: ${customer.name || 'N/A'}`, 25, yPos);
-      yPos += 6;
-      doc.text(`Mobile: ${customer.mobile || 'N/A'}`, 25, yPos);
-      yPos += 6;
-      if (customer.email) {
-        doc.text(`Email: ${customer.email}`, 25, yPos);
-        yPos += 6;
-      }
-      if (customer.location) {
-        doc.text(`Location: ${customer.location}`, 25, yPos);
-        yPos += 6;
-      }
-      yPos += 8;
-
-      // Section divider
-      doc.setDrawColor(200, 200, 200);
-      doc.setLineWidth(0.3);
-      doc.line(20, yPos, pageWidth - 20, yPos);
-      yPos += 8;
+      addToLeft('Customer Information:', 12, 'bold');
+      leftY += 3;
+      addToLeft(`Name: ${customer.name || 'N/A'}`);
+      addToLeft(`Mobile: ${customer.mobile || 'N/A'}`);
+      if (customer.email) addToLeft(`Email: ${customer.email}`);
+      if (customer.location) addToLeft(`Location: ${customer.location}`);
+      leftY += 5;
     }
 
-    // Quotation Information
+    // Event Details (Right Column)
     if (quotation) {
-      doc.setFont('helvetica', 'bold');
-      doc.text('Event Details:', 20, yPos);
-      yPos += 8;
+      addToRight('Event Details:', 12, 'bold');
+      rightY += 3;
+      addToRight(`Quotation ID: ${quotation.quotationId}`);
+      addToRight(`Event Type: ${quotation.eventType || 'N/A'}`);
+      addToRight(`Event Date Start: ${formatDate(quotation.eventDateStart)}`);
+      addToRight(`Event Date End: ${formatDate(quotation.eventDateEnd)}`);
+      addToRight(`Location: ${quotation.location || 'N/A'}`);
+      addToRight(`Package Type: ${quotation.packageType || 'N/A'}`);
+      addToRight(`Session Type: ${quotation.sessionType || 'N/A'}`);
+      rightY += 5;
 
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Quotation ID: ${quotation.quotationId}`, 25, yPos);
-      yPos += 6;
-      doc.text(`Event Type: ${quotation.eventType || 'N/A'}`, 25, yPos);
-      yPos += 6;
-      doc.text(`Event Date Start: ${formatDate(quotation.eventDateStart)}`, 25, yPos);
-      yPos += 6;
-      doc.text(`Event Date End: ${formatDate(quotation.eventDateEnd)}`, 25, yPos);
-      yPos += 6;
-      doc.text(`Location: ${quotation.location || 'N/A'}`, 25, yPos);
-      yPos += 6;
-      doc.text(`Package Type: ${quotation.packageType || 'N/A'}`, 25, yPos);
-      yPos += 6;
-      doc.text(`Session Type: ${quotation.sessionType || 'N/A'}`, 25, yPos);
-      yPos += 10;
-
-      // Services
+      // Services (Right Column)
       if (quotation.services) {
-        doc.setFont('helvetica', 'bold');
-        doc.text('Services:', 20, yPos);
-        yPos += 8;
-
-        doc.setFont('helvetica', 'normal');
+        addToRight('Services:', 12, 'bold');
+        rightY += 3;
 
         if (quotation.services.photography && quotation.services.photography.length > 0) {
-          doc.text('Photography:', 25, yPos);
-          yPos += 6;
+          addToRight('Photography:');
           quotation.services.photography.forEach((service: any) => {
-            doc.text(`• ${service.type} - ${service.stage} - ${service.session} (${service.cameraCount} cameras)`, 30, yPos);
-            yPos += 5;
+            const line = `• ${service.type} - ${service.stage} - ${service.session} (${service.cameraCount} cameras)`;
+            addToRight(line, 10);
           });
-          yPos += 2;
         }
 
         if (quotation.services.videography && quotation.services.videography.length > 0) {
-          doc.text('Videography:', 25, yPos);
-          yPos += 6;
+          addToRight('Videography:');
           quotation.services.videography.forEach((service: any) => {
-            doc.text(`• ${service.type} - ${service.stage} - ${service.session} (${service.cameraCount} cameras)`, 30, yPos);
-            yPos += 5;
+            const line = `• ${service.type} - ${service.stage} - ${service.session} (${service.cameraCount} cameras)`;
+            addToRight(line, 10);
           });
-          yPos += 2;
         }
 
         if (quotation.services.additional && quotation.services.additional.length > 0) {
-          doc.text('Additional Services:', 25, yPos);
-          yPos += 6;
+          addToRight('Additional Services:');
           quotation.services.additional.forEach((service: any) => {
-            doc.text(`• ${service.name}${service.customName ? ` (${service.customName})` : ''} - ${service.session}`, 30, yPos);
-            yPos += 5;
+            const line = `• ${service.name}${service.customName ? ` (${service.customName})` : ''} - ${service.session}`;
+            addToRight(line, 10);
           });
-          yPos += 2;
         }
-        yPos += 10;
+        rightY += 5;
       }
 
-      // Deliverables
+      // Deliverables (Right Column)
       if (quotation.deliverables) {
         const deliverables = typeof quotation.deliverables === 'string'
           ? JSON.parse(quotation.deliverables)
           : quotation.deliverables;
 
-        doc.setFont('helvetica', 'bold');
-        doc.text('Deliverables:', 20, yPos);
-        yPos += 8;
-
-        doc.setFont('helvetica', 'normal');
-        if (deliverables.albumSize) doc.text(`Album Size: ${deliverables.albumSize}`, 25, yPos), yPos += 6;
-        if (deliverables.numberOfAlbums) doc.text(`Number of Albums: ${deliverables.numberOfAlbums}`, 25, yPos), yPos += 6;
-        if (deliverables.sheetsPerAlbum) doc.text(`Sheets per Album: ${deliverables.sheetsPerAlbum}`, 25, yPos), yPos += 6;
-        if (deliverables.totalSheets) doc.text(`Total Sheets: ${deliverables.totalSheets}`, 25, yPos), yPos += 6;
-        if (deliverables.totalPhotosForSelection) doc.text(`Total Photos for Selection: ${deliverables.totalPhotosForSelection}`, 25, yPos), yPos += 6;
-        if (deliverables.digital !== undefined) doc.text(`Digital Delivery: ${deliverables.digital ? 'Yes' : 'No'}`, 25, yPos), yPos += 6;
-        if (deliverables.printGifts !== undefined) doc.text(`Print Gifts: ${deliverables.printGifts ? 'Yes' : 'No'}`, 25, yPos), yPos += 6;
-        if (deliverables.others !== undefined) doc.text(`Others: ${deliverables.others ? 'Yes' : 'No'}`, 25, yPos), yPos += 6;
-        yPos += 10;
+        addToRight('Deliverables:', 12, 'bold');
+        rightY += 3;
+        if (deliverables.albumSize) addToRight(`Album Size: ${deliverables.albumSize}`, 10);
+        if (deliverables.numberOfAlbums) addToRight(`Number of Albums: ${deliverables.numberOfAlbums}`, 10);
+        if (deliverables.sheetsPerAlbum) addToRight(`Sheets per Album: ${deliverables.sheetsPerAlbum}`, 10);
+        if (deliverables.totalSheets) addToRight(`Total Sheets: ${deliverables.totalSheets}`, 10);
+        if (deliverables.totalPhotosForSelection) addToRight(`Total Photos for Selection: ${deliverables.totalPhotosForSelection}`, 10);
+        if (deliverables.digital !== undefined) addToRight(`Digital Delivery: ${deliverables.digital ? 'Yes' : 'No'}`, 10);
+        if (deliverables.printGifts !== undefined) addToRight(`Print Gifts: ${deliverables.printGifts ? 'Yes' : 'No'}`, 10);
+        if (deliverables.others !== undefined) addToRight(`Others: ${deliverables.others ? 'Yes' : 'No'}`, 10);
+        rightY += 5;
       }
 
-      doc.text(`Quotation Total: ${formatCurrencyForPDF(quotation.manualTotal || quotation.customerTotal)}`, 25, yPos);
-      yPos += 8;
-
-      // Section divider
-      doc.setDrawColor(200, 200, 200);
-      doc.setLineWidth(0.3);
-      doc.line(20, yPos, pageWidth - 20, yPos);
-      yPos += 8;
+      addToRight(`Quotation Total: ${formatCurrencyForPDF(quotation.manualTotal || quotation.customerTotal)}`, 12, 'bold');
+      rightY += 5;
     }
 
-    // Workflow Status
-    doc.setFont('helvetica', 'bold');
-    doc.text('Workflow Status:', 20, yPos);
-    yPos += 8;
-
-    doc.setFont('helvetica', 'normal');
+    // Workflow Status (Left Column, after customer)
+    addToLeft('Workflow Status:', 12, 'bold');
+    leftY += 3;
     Object.entries(workflow).forEach(([key, value]) => {
       const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-      doc.text(`${label}: ${value}`, 25, yPos);
-      yPos += 6;
+      addToLeft(`${label}: ${value}`, 10);
     });
-    yPos += 8;
+    leftY += 5;
 
-    // Section divider
-    doc.setDrawColor(200, 200, 200);
-    doc.setLineWidth(0.3);
-    doc.line(20, yPos, pageWidth - 20, yPos);
-    yPos += 8;
-
-    // Check if we need a new page
-    if (yPos > pageHeight - 60) {
+    // Sync Y positions and check for page break
+    const maxY = Math.max(leftY, rightY);
+    if (maxY > pageHeight - bottomMargin) {
       doc.addPage();
-      yPos = 20;
+      addHeader(true);
+      leftY = yPos;
+      rightY = yPos;
     }
+
+    // Expenses (Full width or left)
+    yPos = Math.max(leftY, rightY) + 10;
 
     // Expenses
     doc.setFont('helvetica', 'bold');
@@ -409,26 +409,23 @@ export default function OrderDetailPage() {
       expenses.forEach((expense) => {
         if (yPos > pageHeight - 20) {
           doc.addPage();
-          yPos = 20;
+          addHeader(true);
         }
         doc.text(`${expense.costHead}: ${formatCurrencyForPDF(Number(expense.amount))}`, 25, yPos);
         yPos += 5;
         if (expense.vendorName) {
           doc.setFontSize(10);
-          doc.text(`Vendor: ${expense.vendorName}`, 30, yPos);
-          yPos += 4;
+          writeWrapped(`Vendor: ${expense.vendorName}`, 30, pageWidth - 60);
           doc.setFontSize(12);
         }
         if (expense.description) {
           doc.setFontSize(10);
-          doc.text(`Description: ${expense.description}`, 30, yPos);
-          yPos += 4;
+          writeWrapped(`Description: ${expense.description}`, 30, pageWidth - 60);
           doc.setFontSize(12);
         }
         if (expense.date) {
           doc.setFontSize(10);
-          doc.text(`Date: ${formatDate(expense.date)}`, 30, yPos);
-          yPos += 4;
+          writeWrapped(`Date: ${formatDate(expense.date)}`, 30, pageWidth - 60);
           doc.setFontSize(12);
         }
         yPos += 2;
@@ -448,7 +445,7 @@ export default function OrderDetailPage() {
     // Check if we need a new page
     if (yPos > pageHeight - 60) {
       doc.addPage();
-      yPos = 20;
+      addHeader(true);
     }
 
     // Payments
@@ -464,20 +461,18 @@ export default function OrderDetailPage() {
       payments.forEach((payment) => {
         if (yPos > pageHeight - 20) {
           doc.addPage();
-          yPos = 20;
+          addHeader(true);
         }
         doc.text(`${payment.paymentType}: ${formatCurrencyForPDF(payment.amount)}`, 25, yPos);
         yPos += 5;
         if (payment.date) {
           doc.setFontSize(10);
-          doc.text(`Date: ${formatDate(payment.date)}`, 30, yPos);
-          yPos += 4;
+          writeWrapped(`Date: ${formatDate(payment.date)}`, 30, pageWidth - 60);
           doc.setFontSize(12);
         }
         if (payment.notes) {
           doc.setFontSize(10);
-          doc.text(`Notes: ${payment.notes}`, 30, yPos);
-          yPos += 4;
+          writeWrapped(`Notes: ${payment.notes}`, 30, pageWidth - 60);
           doc.setFontSize(12);
         }
         yPos += 2;
@@ -497,7 +492,7 @@ export default function OrderDetailPage() {
     // Financial Summary
     if (yPos > pageHeight - 40) {
       doc.addPage();
-      yPos = 20;
+      addHeader(true);
     }
 
     doc.setFontSize(14);
@@ -617,9 +612,9 @@ export default function OrderDetailPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Yes">Yes 🟢</SelectItem>
-                      <SelectItem value="No">No 🔴</SelectItem>
-                      <SelectItem value="Not needed">Not Needed 🟢</SelectItem>
+                      <SelectItem value="Yes">Yes</SelectItem>
+                      <SelectItem value="No">No</SelectItem>
+                      <SelectItem value="Not needed">Not Needed</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -631,9 +626,9 @@ export default function OrderDetailPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Yes">Yes 🟢</SelectItem>
-                      <SelectItem value="No">No 🔴</SelectItem>
-                      <SelectItem value="Not needed">Not Needed 🟢</SelectItem>
+                      <SelectItem value="Yes">Yes</SelectItem>
+                      <SelectItem value="No">No</SelectItem>
+                      <SelectItem value="Not needed">Not Needed</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -645,9 +640,9 @@ export default function OrderDetailPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Yes">Yes 🟢</SelectItem>
-                      <SelectItem value="No">No 🔴</SelectItem>
-                      <SelectItem value="Not needed">Not Needed 🟢</SelectItem>
+                      <SelectItem value="Yes">Yes</SelectItem>
+                      <SelectItem value="No">No</SelectItem>
+                      <SelectItem value="Not needed">Not Needed</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -659,9 +654,9 @@ export default function OrderDetailPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Yes">Yes 🟢</SelectItem>
-                      <SelectItem value="No">No 🔴</SelectItem>
-                      <SelectItem value="Not needed">Not Needed 🟢</SelectItem>
+                      <SelectItem value="Yes">Yes</SelectItem>
+                      <SelectItem value="No">No</SelectItem>
+                      <SelectItem value="Not needed">Not Needed</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -673,9 +668,9 @@ export default function OrderDetailPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Yes">Yes 🟢</SelectItem>
-                      <SelectItem value="No">No 🔴</SelectItem>
-                      <SelectItem value="Not needed">Not Needed 🟢</SelectItem>
+                      <SelectItem value="Yes">Yes</SelectItem>
+                      <SelectItem value="No">No</SelectItem>
+                      <SelectItem value="Not needed">Not Needed</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -687,9 +682,9 @@ export default function OrderDetailPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Yes">Yes 🟢</SelectItem>
-                      <SelectItem value="No">No 🔴</SelectItem>
-                      <SelectItem value="Not needed">Not Needed 🟢</SelectItem>
+                      <SelectItem value="Yes">Yes</SelectItem>
+                      <SelectItem value="No">No</SelectItem>
+                      <SelectItem value="Not needed">Not Needed</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

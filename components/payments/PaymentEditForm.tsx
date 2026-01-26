@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,27 +22,55 @@ interface PaymentEditFormProps {
   onCancel: () => void;
 }
 
-export function PaymentEditForm({ payment, onSuccess, onCancel }: PaymentEditFormProps) {
+/* ================= SAFE NUMBER PARSER ================= */
+const toNumber = (value: any): number => {
+  if (typeof value === 'number') return value;
+  if (!value) return 0;
+
+  return (
+    Number(
+      String(value)
+        .replace(/₹/g, '')
+        .replace(/,/g, '')
+        .trim()
+    ) || 0
+  );
+};
+
+/* ================= COMPONENT ================= */
+export function PaymentEditForm({
+  payment,
+  onSuccess,
+  onCancel,
+}: PaymentEditFormProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [amount, setAmount] = useState((payment as any).amount || 0);
+
+  const [amount, setAmount] = useState<number>(toNumber((payment as any).amount));
   const [paymentType, setPaymentType] = useState<PaymentType>(payment.paymentType);
   const [date, setDate] = useState(payment.date.split('T')[0]);
   const [notes, setNotes] = useState(payment.notes || '');
   const [order, setOrder] = useState<any>(null);
 
+  /* ================= FETCH ORDER ================= */
   useEffect(() => {
-    fetch(`/api/orders`)
+    fetch('/api/orders')
       .then((res) => res.json())
       .then((orders) => {
-        const foundOrder = Array.isArray(orders) ? orders.find((o: any) => o.orderId === payment.orderId) : null;
+        const foundOrder = Array.isArray(orders)
+          ? orders.find((o: any) => o.orderId === payment.orderId)
+          : null;
         if (foundOrder) setOrder(foundOrder);
       })
       .catch((error) => console.error('Error fetching order:', error));
   }, [payment.orderId]);
 
-  const balanceAmount = order ? (order.finalBudget || 0) - amount : 0;
+  /* ================= CALCULATIONS ================= */
+  const finalBudget = toNumber(order?.finalBudget);
+  const balanceAmount = finalBudget - amount;
+  const safeBalanceAmount = Math.max(balanceAmount, 0);
 
+  /* ================= SUBMIT ================= */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -81,17 +108,25 @@ export function PaymentEditForm({ payment, onSuccess, onCancel }: PaymentEditFor
     }
   };
 
+  /* ================= UI ================= */
   return (
     <Card>
       <CardHeader>
         <CardTitle>Edit Payment</CardTitle>
       </CardHeader>
+
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
             <div className="space-y-2">
               <Label>Payment Type *</Label>
-              <Select value={paymentType} onValueChange={(value) => setPaymentType(value as PaymentType)}>
+              <Select
+                value={paymentType}
+                onValueChange={(value) =>
+                  setPaymentType(value as PaymentType)
+                }
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -121,9 +156,13 @@ export function PaymentEditForm({ payment, onSuccess, onCancel }: PaymentEditFor
                 type="number"
                 step="0.01"
                 value={amount}
-                onChange={(e) => setAmount(parseFloat(e.target.value) || 0)}
+                onChange={(e) =>
+                  setAmount(parseFloat(e.target.value) || 0)
+                }
                 required
-                onWheel={(e) => (e.currentTarget as HTMLInputElement).blur()}
+                onWheel={(e) =>
+                  (e.currentTarget as HTMLInputElement).blur()
+                }
               />
             </div>
 
@@ -131,11 +170,16 @@ export function PaymentEditForm({ payment, onSuccess, onCancel }: PaymentEditFor
               <Label>Total Balance Amount</Label>
               <Input
                 type="text"
-                value={order ? String((order.finalBudget || 0) - amount) : '0'}
+                value={safeBalanceAmount.toLocaleString('en-IN', {
+                  style: 'currency',
+                  currency: 'INR',
+                })}
                 disabled
                 className="bg-gray-100 dark:bg-gray-800"
               />
-              <p className="text-xs text-gray-500">Calculated automatically: Final Budget - Amount</p>
+              <p className="text-xs text-gray-500">
+                Calculated automatically: Final Budget − Amount
+              </p>
             </div>
 
             <div className="space-y-2 md:col-span-2">

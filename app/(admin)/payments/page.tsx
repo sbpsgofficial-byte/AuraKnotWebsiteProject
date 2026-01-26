@@ -170,7 +170,7 @@ export default function PaymentsPage() {
                 const totalExpenses = expenses
                   .filter(e => e.orderId === p.orderId)
                   .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
-                const profit = (order?.finalBudget || order?.estimatedBudget || 0) - totalExpenses;
+                const profit = totalPaid - totalExpenses;
 
                 return (
                   <tr key={p.paymentId} className="border-b hover:bg-gray-50">
@@ -182,7 +182,7 @@ export default function PaymentsPage() {
                     <td className="p-4">{customerName}</td>
                     <td className="p-4">{p.paymentType}</td>
                     <td className="p-4 text-right">{formatCurrency(order?.finalBudget || order?.estimatedBudget || 0)}</td>
-                    <td className="p-4 text-right">{formatCurrency(p.amount)}</td>
+                    <td className="p-4 text-right">{formatCurrency(totalPaid)}</td>
                     <td className="p-4 text-right">
                       <span className={balance > 0 ? 'text-red-600' : 'text-green-600'}>
                         {formatCurrency(balance)}
@@ -198,6 +198,28 @@ export default function PaymentsPage() {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Payment Type Summary */}
+      <div className="mt-8">
+        <h2 className="text-xl font-semibold mb-4">Payment Summary by Type</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {(['Initial Advance', 'Function Advance', 'Printing Advance', 'Final Payment'] as const).map(type => {
+            const typeTotal = allPayments
+              .filter(p => p.paymentType === type)
+              .reduce((sum, p) => sum + p.amount, 0);
+            return (
+              <Card key={type}>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-sm text-gray-600">{type}</p>
+                    <p className="text-2xl font-bold text-green-600">{formatCurrency(typeTotal)}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

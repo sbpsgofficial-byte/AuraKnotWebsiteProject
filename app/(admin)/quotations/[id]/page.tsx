@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,11 +23,7 @@ export default function QuotationViewPage() {
   const [showRemarks, setShowRemarks] = useState(false);
   const [remarks, setRemarks] = useState('');
 
-  useEffect(() => {
-    fetchQuotation();
-  }, [params.id]);
-
-  const fetchQuotation = async () => {
+  const fetchQuotation = useCallback(async () => {
     try {
       const response = await fetch(`/api/quotations/${params.id}`);
       if (response.ok) {
@@ -60,20 +56,36 @@ export default function QuotationViewPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [params.id]);
 
-  const handleDownloadPDF = () => {
-    if (!quotation || !customerName) {
-      toast({ title: 'Error', description: 'Quotation data not loaded', variant: 'destructive' });
-      return;
-    }
+  useEffect(() => {
+    fetchQuotation();
+  }, [params.id, fetchQuotation]); // Re-run when quotation ID changes
 
-    const deliverables = quotation.deliverables
-      ? (typeof quotation.deliverables === 'string' ? JSON.parse(quotation.deliverables) : quotation.deliverables)
-      : null;
-
+  const handleDownloadPDF = async () => {
     try {
-      generateQuotationPDF(quotation, customerName, deliverables);
+      // Always fetch fresh data from API before generating PDF
+      const quotationResponse = await fetch(`/api/quotations/${params.id}`);
+      if (!quotationResponse.ok) {
+        throw new Error('Failed to fetch quotation data');
+      }
+      const freshQuotation = await quotationResponse.json();
+
+      // Fetch fresh customer data
+      let freshCustomerName = customerName;
+      if (freshQuotation.customerId) {
+        const customerRes = await fetch(`/api/customers?id=${freshQuotation.customerId}`);
+        if (customerRes.ok) {
+          const customerData = await customerRes.json();
+          freshCustomerName = customerData.name || '';
+        }
+      }
+
+      const deliverables = freshQuotation.deliverables
+        ? (typeof freshQuotation.deliverables === 'string' ? JSON.parse(freshQuotation.deliverables) : freshQuotation.deliverables)
+        : null;
+
+      generateQuotationPDF(freshQuotation, freshCustomerName, deliverables);
       toast({ title: 'Success', description: 'PDF downloaded successfully' });
     } catch (err) {
       console.error('Error generating PDF:', err);

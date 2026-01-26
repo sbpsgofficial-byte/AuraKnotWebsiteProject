@@ -63,13 +63,3 @@ export const SESSION_MULTIPLIERS: Record<SessionType, number> = {
   '2 Sessions': 2,
   'Others': 1,
 };
-
-export const GOOGLE_SHEETS_SHEET_NAMES = {
-  CUSTOMERS: 'Customers',
-  QUOTATIONS: 'Quotations',
-  ORDERS: 'Orders',
-  EXPENSES: 'Expenses',
-  PAYMENTS: 'Payments',
-  PACKAGES: 'Packages',
-  WORKFLOW_STATUS: 'WorkflowStatus',
-} as const;

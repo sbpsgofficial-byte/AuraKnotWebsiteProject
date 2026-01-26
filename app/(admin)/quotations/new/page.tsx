@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,17 +46,7 @@ export default function NewQuotationPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    if (quotationId) {
-      // Edit mode - fetch existing quotation
-      fetchQuotation();
-    } else if (customerId) {
-      // New mode - fetch customer
-      fetchCustomer();
-    }
-  }, [customerId, quotationId]);
-
-  const fetchQuotation = async () => {
+  const fetchQuotation = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch(`/api/quotations/${quotationId}`);
@@ -88,9 +78,9 @@ export default function NewQuotationPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [quotationId]);
 
-  const fetchCustomer = async () => {
+  const fetchCustomer = useCallback(async () => {
     try {
       const response = await fetch(`/api/customers?id=${customerId}`);
       if (response.ok) {
@@ -100,7 +90,17 @@ export default function NewQuotationPage() {
     } catch (error) {
       console.error('Error fetching customer:', error);
     }
-  };
+  }, [customerId]);
+
+  useEffect(() => {
+    if (quotationId) {
+      // Edit mode - fetch existing quotation
+      fetchQuotation();
+    } else if (customerId) {
+      // New mode - fetch customer
+      fetchCustomer();
+    }
+  }, [customerId, quotationId, fetchQuotation, fetchCustomer]);
 
   const addPhotographyService = () => {
     setServices((prev) => ({

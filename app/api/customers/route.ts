@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/google-auth';
-import { sheetsClient } from '@/lib/google-sheets';
-import { GOOGLE_SHEETS_SHEET_NAMES } from '@/config/constants';
+import { supabase } from '@/lib/supabase';
 import { customerFormSchema } from '@/lib/validations';
 
 export const runtime = 'nodejs';
@@ -22,31 +21,23 @@ export async function POST(request: NextRequest) {
     const customerId = `CUST-${Date.now()}`;
 
     // Prepare customer data
-    const customerData = [
-      customerId,
-      validated.name,
-      validated.mobile,
-      validated.email || '',
-      validated.eventType,
-      validated.eventDateStart,
-      validated.eventDateEnd,
-      validated.location,
-      validated.packageType,
-      validated.sessionType,
-      new Date().toISOString(),
-    ];
+    const customerData = {
+      customer_id: customerId,
+      name: validated.name,
+      phone: validated.mobile,
+      email: validated.email || null,
+      address: validated.location, // Using location as address for now
+    };
 
-    // Get headers first
-    const headers = await sheetsClient.readSheet(GOOGLE_SHEETS_SHEET_NAMES.CUSTOMERS);
-    if (headers.length === 0) {
-      // Create headers if sheet is empty
-      await sheetsClient.writeSheet(GOOGLE_SHEETS_SHEET_NAMES.CUSTOMERS, [
-        ['customerId', 'name', 'mobile', 'email', 'eventType', 'eventDateStart', 'eventDateEnd', 'location', 'packageType', 'sessionType', 'createdAt'],
-        customerData,
-      ]);
-    } else {
-      // Append new customer
-      await sheetsClient.appendRow(GOOGLE_SHEETS_SHEET_NAMES.CUSTOMERS, customerData);
+    const { data, error } = await supabase
+      .from('customers')
+      .insert(customerData)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating customer:', error);
+      return NextResponse.json({ error: 'Failed to create customer' }, { status: 500 });
     }
 
     return NextResponse.json({
@@ -73,28 +64,48 @@ export async function GET(request: NextRequest) {
     const customerId = searchParams.get('id');
 
     if (customerId) {
-      const rows = await sheetsClient.readSheet(GOOGLE_SHEETS_SHEET_NAMES.CUSTOMERS);
-      if (rows.length === 0) {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('customer_id', customerId)
+        .single();
+
+      if (error || !data) {
         return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
       }
 
-      const headers = rows[0];
-      const customerRow = rows.find((row: any[]) => row[0] === customerId);
-      
-      if (!customerRow) {
-        return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
-      }
-
-      const customer: any = {};
-      headers.forEach((header, index) => {
-        customer[header] = customerRow[index] || '';
-      });
+      // Transform to match existing API format
+      const customer = {
+        customerId: data.customer_id,
+        name: data.name,
+        mobile: data.phone,
+        email: data.email,
+        location: data.address,
+        createdAt: data.created_at,
+      };
 
       return NextResponse.json(customer);
     }
 
-    const { getCustomers } = await import('@/lib/google-sheets');
-    const customers = await getCustomers();
+    const { data, error } = await supabase
+      .from('customers')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching customers:', error);
+      return NextResponse.json({ error: 'Failed to fetch customers' }, { status: 500 });
+    }
+
+    // Transform to match existing API format
+    const customers = data.map(customer => ({
+      customerId: customer.customer_id,
+      name: customer.name,
+      mobile: customer.phone,
+      email: customer.email,
+      location: customer.address,
+      createdAt: customer.created_at,
+    }));
 
     return NextResponse.json(customers);
   } catch (error: any) {
