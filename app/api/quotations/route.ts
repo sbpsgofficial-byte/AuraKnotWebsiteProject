@@ -16,11 +16,18 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    console.log('Quotation creation request body:', body);
     const { customerId, services, customerTotal, manualTotal, deliverables, eventType, eventDateStart, eventDateEnd, location } = body;
 
     // Validate required fields
-    if (!eventType || !eventDateStart) {
-      return NextResponse.json({ error: 'Event type and start date are required' }, { status: 400 });
+    if (!eventType || eventType.trim() === '') {
+      return NextResponse.json({ error: 'Event type is required' }, { status: 400 });
+    }
+    if (!eventDateStart || eventDateStart.trim() === '') {
+      return NextResponse.json({ error: 'Event start date is required' }, { status: 400 });
+    }
+    if (!customerId || customerId.trim() === '') {
+      return NextResponse.json({ error: 'Customer ID is required' }, { status: 400 });
     }
 
     // Fetch customer data from Supabase
@@ -29,6 +36,8 @@ export async function POST(request: NextRequest) {
       .select('*')
       .eq('customer_id', customerId)
       .single();
+
+    console.log('Customer lookup result:', { customerId, customer, customerError });
 
     if (customerError || !customer) {
       return NextResponse.json({ error: 'Customer not found' }, { status: 404 });

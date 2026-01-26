@@ -210,10 +210,19 @@ export default function NewQuotationPage() {
       return;
     }
 
-    if (!eventType || !eventDateStart) {
+    if (!eventType || eventType.trim() === '') {
       toast({
         title: 'Error',
-        description: 'Event type and start date are required',
+        description: 'Event type is required',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!eventDateStart || eventDateStart.trim() === '') {
+      toast({
+        title: 'Error',
+        description: 'Event start date is required',
         variant: 'destructive',
       });
       return;
@@ -224,20 +233,24 @@ export default function NewQuotationPage() {
       const url = quotationId ? `/api/quotations/${quotationId}` : '/api/quotations';
       const method = quotationId ? 'PATCH' : 'POST';
       
+      const requestData = {
+        customerId: targetCustomerId,
+        eventType,
+        eventDateStart,
+        eventDateEnd: eventDateEnd || null,
+        location: eventLocation || customer?.address || '',
+        services,
+        customerTotal: manualTotal,
+        manualTotal,
+        deliverables,
+      };
+      
+      console.log('Sending quotation data:', requestData);
+      
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          customerId: targetCustomerId,
-          eventType,
-          eventDateStart,
-          eventDateEnd: eventDateEnd || null,
-          location: eventLocation || customer?.address || '',
-          services,
-          customerTotal: manualTotal,
-          manualTotal,
-          deliverables,
-        }),
+        body: JSON.stringify(requestData),
       });
 
       if (!response.ok) {
