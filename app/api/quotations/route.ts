@@ -9,27 +9,38 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
+  console.log('Quotation API called - start');
   try {
+    console.log('Checking session...');
     const session = await getServerSession(authOptions);
+    console.log('Session result:', session ? 'authenticated' : 'unauthenticated');
     if (!session) {
+      console.log('Returning 401 - unauthorized');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    console.log('Parsing request body...');
     const body = await request.json();
     console.log('Quotation creation request body:', body);
     const { customerId, services, customerTotal, manualTotal, deliverables, eventType, eventDateStart, eventDateEnd, location } = body;
 
     // Validate required fields
+    console.log('Validating fields - eventType:', eventType, 'eventDateStart:', eventDateStart, 'customerId:', customerId);
     if (!eventType || eventType.trim() === '') {
+      console.log('Validation failed: Event type required');
       return NextResponse.json({ error: 'Event type is required' }, { status: 400 });
     }
     if (!eventDateStart || eventDateStart.trim() === '') {
+      console.log('Validation failed: Event start date required');
       return NextResponse.json({ error: 'Event start date is required' }, { status: 400 });
     }
     if (!customerId || customerId.trim() === '') {
+      console.log('Validation failed: Customer ID required');
       return NextResponse.json({ error: 'Customer ID is required' }, { status: 400 });
     }
+    console.log('Validation passed');
 
+    console.log('Looking up customer:', customerId);
     // Fetch customer data from Supabase
     const { data: customer, error: customerError } = await supabase
       .from('customers')
@@ -37,9 +48,10 @@ export async function POST(request: NextRequest) {
       .eq('customer_id', customerId)
       .single();
 
-    console.log('Customer lookup result:', { customerId, customer, customerError });
+    console.log('Customer lookup result:', { customer: customer ? 'found' : 'not found', customerError });
 
     if (customerError || !customer) {
+      console.log('Returning 404 - customer not found');
       return NextResponse.json({ error: 'Customer not found' }, { status: 404 });
     }
 
