@@ -300,7 +300,7 @@ export default function NewQuotationPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="eventType">Event Type *</Label>
-                  <Select value={eventType} onValueChange={setEventType}>
+                  <Select value={eventType} onValueChange={setEventType} required>
                     <SelectTrigger>
                       <SelectValue placeholder="Select event type" />
                     </SelectTrigger>
@@ -329,6 +329,7 @@ export default function NewQuotationPage() {
                     type="date"
                     value={eventDateStart}
                     onChange={(e) => setEventDateStart(e.target.value)}
+                    required
                   />
                 </div>
                 <div>
