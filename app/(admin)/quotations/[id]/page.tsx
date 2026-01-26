@@ -347,7 +347,7 @@ export default function QuotationViewPage() {
                   />
                 </div>
               )}
-              <div className="flex justify-end space-x-4">
+              <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-4">
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -356,6 +356,7 @@ export default function QuotationViewPage() {
                     handleStatusChange('Declined');
                   }}
                   disabled={isUpdating}
+                  className="w-full sm:w-auto"
                 >
                   Decline
                 </Button>
@@ -366,6 +367,7 @@ export default function QuotationViewPage() {
                     handleStatusChange('Pending');
                   }}
                   disabled={isUpdating}
+                  className="w-full sm:w-auto"
                 >
                   {isUpdating ? 'Updating...' : 'Mark as Pending'}
                 </Button>
@@ -375,6 +377,7 @@ export default function QuotationViewPage() {
                     handleStatusChange('Confirmed');
                   }}
                   disabled={isUpdating}
+                  className="w-full sm:w-auto"
                 >
                   {isUpdating ? 'Confirming...' : 'Confirm Quotation'}
                 </Button>

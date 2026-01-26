@@ -19,6 +19,7 @@ import {
   SERVICE_STAGES,
   SESSION_TYPES,
   ADDITIONAL_SERVICES,
+  EVENT_TYPES,
 } from '@/config/constants';
 import { formatCurrency } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
@@ -46,6 +47,12 @@ export default function NewQuotationPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Event details state
+  const [eventType, setEventType] = useState('');
+  const [eventDateStart, setEventDateStart] = useState('');
+  const [eventDateEnd, setEventDateEnd] = useState('');
+  const [eventLocation, setEventLocation] = useState('');
+
   const fetchQuotation = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -56,6 +63,10 @@ export default function NewQuotationPage() {
         
         // Pre-populate form (editing allowed even after confirmation)
         setCustomer({ customerId: data.customerId });
+        setEventType(data.eventType || '');
+        setEventDateStart(data.eventDateStart || '');
+        setEventDateEnd(data.eventDateEnd || '');
+        setEventLocation(data.location || '');
         if (data.services) {
           const servicesData = typeof data.services === 'string' ? JSON.parse(data.services) : data.services;
           setServices(servicesData);
@@ -199,6 +210,15 @@ export default function NewQuotationPage() {
       return;
     }
 
+    if (!eventType || !eventDateStart) {
+      toast({
+        title: 'Error',
+        description: 'Event type and start date are required',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const url = quotationId ? `/api/quotations/${quotationId}` : '/api/quotations';
@@ -209,8 +229,10 @@ export default function NewQuotationPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           customerId: targetCustomerId,
-          location: customer?.location || '',
-          locationCoordinates: customer?.locationCoordinates || undefined,
+          eventType,
+          eventDateStart,
+          eventDateEnd: eventDateEnd || null,
+          location: eventLocation || customer?.address || '',
           services,
           customerTotal: manualTotal,
           manualTotal,
@@ -259,6 +281,55 @@ export default function NewQuotationPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-8">
+            {/* Event Details */}
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Event Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="eventType">Event Type *</Label>
+                  <Select value={eventType} onValueChange={setEventType}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select event type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {EVENT_TYPES.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {type}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="eventLocation">Event Location</Label>
+                  <Input
+                    id="eventLocation"
+                    value={eventLocation}
+                    onChange={(e) => setEventLocation(e.target.value)}
+                    placeholder="Enter event location"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="eventDateStart">Event Start Date *</Label>
+                  <Input
+                    id="eventDateStart"
+                    type="date"
+                    value={eventDateStart}
+                    onChange={(e) => setEventDateStart(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="eventDateEnd">Event End Date</Label>
+                  <Input
+                    id="eventDateEnd"
+                    type="date"
+                    value={eventDateEnd}
+                    onChange={(e) => setEventDateEnd(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Photography Services */}
             <div>
               <div className="flex justify-between items-center mb-4">
